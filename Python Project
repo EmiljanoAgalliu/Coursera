@@ -1,0 +1,75 @@
+import yfinance as yf
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+# 1. Extracting Tesla Stock Data Using yfinance
+
+tesla_data = yf.download('TSLA', period='1y')
+tesla_data_reset = tesla_data.reset_index()
+tesla_data_reset.to_csv('tesla_data.csv', index=False)
+print(tesla_data_reset.head())
+
+# 2. Extracting Tesla Revenue Data Using Web Scraping
+
+tesla = yf.Ticker("TSLA")
+tesla_revenue = tesla.quarterly_income_stmt
+# pd.set_option('display.max_rows', None)
+# pd.set_option('display.max_columns', None)
+print(tesla_revenue.tail())
+
+
+# 3. Extracting GameStop Stock Data Using yfinance
+
+gme = yf.Ticker("GME")
+gme_data = gme.history(period="5y")
+gme_data_reset = gme_data.reset_index()
+print(gme_data_reset.head())
+gme_data_reset.to_csv("gme_stock_data.csv", index=False)
+
+
+# 4. Extracting GameStop Revenue Data Using Web Scraping
+
+gme = yf.Ticker("GME")
+gme_financials = gme.financials
+revenue_data = gme_financials.loc['Total Revenue']
+revenue_df = pd.DataFrame(revenue_data).transpose()
+print(revenue_df.tail())
+
+
+# 5. Tesla Stock and Revenue Dashboard
+
+tesla_data = yf.download('TSLA', period='1y')
+
+def make_graph(stock_data):
+    plt.figure(figsize=(10, 6))
+    plt.plot(stock_data['Close'], label='Tesla Closing Price', color='b')
+
+    plt.title('Tesla Stock Price Over the Last Year', fontsize=16)
+    plt.xlabel('Date', fontsize=12)
+    plt.ylabel('Price (USD)', fontsize=12)
+    plt.legend()
+
+    plt.grid(True)
+    plt.show()
+
+make_graph(tesla_data)
+
+
+# 6. GameStop Stock and Revenue Dashboard
+
+gme_data = yf.download('GME', period='1y')
+
+def make_graph(stock_data):
+    plt.figure(figsize=(10, 6))
+    plt.plot(stock_data['Close'], label='GameStop Closing Price', color='g')
+
+    plt.title('GameStop Stock Price Over the Last Year', fontsize=16)
+    plt.xlabel('Date', fontsize=12)
+    plt.ylabel('Price (USD)', fontsize=12)
+    plt.legend()
+
+    plt.grid(True)
+    plt.show()
+
+make_graph(gme_data)
