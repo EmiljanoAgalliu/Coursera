@@ -1,0 +1,180 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score, recall_score, classification_report, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.impute import SimpleImputer
+from sklearn import preprocessing
+import seaborn as sns
+import numpy as np
+import aiohttp
+import asyncio
+import warnings
+
+warnings.filterwarnings('ignore')
+
+async def download_file(url, filepath):
+    connector = aiohttp.TCPConnector(ssl=False)
+    async with aiohttp.ClientSession(connector=connector) as session:
+        async with session.get(url) as response:
+             with open(filepath, 'wb') as file:
+                file.write(await response.read())
+
+def read_data(filepath1, filepath2):
+    df = pd.read_csv(filepath1)
+    X = pd.read_csv(filepath2)
+    return df, X
+
+async def main():
+    url1 = "https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/dataset_part_2.csv"
+    url2 = 'https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/dataset_part_3.csv'
+    filepath1 = "dataset_part_2.csv"
+    filepath2 = "dataset_part_3.csv"
+    await download_file(url1, "dataset_part_2.csv")
+    await download_file(url2, "dataset_part_3.csv")
+
+    df, X = read_data(filepath1, filepath2)
+    pd.set_option('display.max_rows', None)
+    pd.set_option('display.max_columns', None)
+    print(df.head(5))
+    print(X.head(5))
+
+    def plot_confusion_matrix(y, y_predict):
+        cm = confusion_matrix(y, y_predict)
+        ax = plt.subplot()
+        sns.heatmap(cm, annot=True, ax=ax)
+        ax.set_xlabel('Predicted labels')
+        ax.set_ylabel('True labels')
+        ax.set_title('Confusion Matrix')
+        ax.xaxis.set_ticklabels(['did not land', 'land'])
+        ax.yaxis.set_ticklabels(['did not land', 'landed'])
+        plt.show()
+
+    # Task 1
+    y = df['Class'].to_numpy()
+
+    # Task 2
+    transform = StandardScaler()
+
+    X = transform.fit_transform(X)
+
+    # Task 3
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=2)
+
+    print(y_test.shape)
+
+    # Task 4
+    parameters = {
+        'penalty': ['l1', 'l2', 'elasticnet', 'none'],
+        'C': [0.01, 0.1, 1, 10, 100],
+        'solver': ['liblinear', 'saga', 'lbfgs']
+    }
+
+    logreg = LogisticRegression(max_iter=1000)
+    logreg_cv = GridSearchCV(estimator=logreg, param_grid=parameters, cv=10, scoring='accuracy')
+    logreg_cv.fit(X_train, y_train)
+
+    print("Best LogReg parameters found: ", logreg_cv.best_params_)
+    print("Tuned LogReg Hyperparameters :(best parameters) ", logreg_cv.best_params_)
+    print("Accuracy LogReg:", logreg_cv.best_score_)
+
+    # Task 5
+    test_accuracy = logreg_cv.score(X_test, y_test)
+    print("Accuracy LogReg on the test data: ", test_accuracy)
+    yhat = logreg_cv.predict(X_test)
+    # plot_confusion_matrix(y_test, yhat)
+
+    # Task 6
+    parameters = {'kernel': ('linear', 'rbf', 'poly', 'rbf', 'sigmoid'),
+                  'C': np.logspace(-3, 3, 5),
+                  'gamma': np.logspace(-3, 3, 5)}
+    svm = SVC()
+    svm_cv = GridSearchCV(estimator=svm, param_grid=parameters, cv=10, scoring='accuracy')
+    svm_cv.fit(X_train, y_train)
+
+    print("Best SVM parameters found: ", svm_cv.best_params_)
+    print("Tuned SVM Hyperparameters :(best parameters) ", svm_cv.best_params_)
+    print("Accuracy SVM:", svm_cv.best_score_)
+
+    # Task 7
+    test_accuracy = svm_cv.score(X_test, y_test)
+    print("Accuracy SVM on the test data: ", test_accuracy)
+    yhat = svm_cv.predict(X_test)
+    # plot_confusion_matrix(y_test, yhat)
+
+    # Task 8
+    parameters = {'criterion': ['gini', 'entropy'],
+                  'splitter': ['best', 'random'],
+                  'max_depth': [2 * n for n in range(1, 10)],
+                  'max_features': ['auto', 'sqrt', 'log2'],
+                  'min_samples_leaf': [1, 2, 4],
+                  'min_samples_split': [2, 5, 10]}
+
+    tree = DecisionTreeClassifier()
+    tree_cv = GridSearchCV(estimator=tree, param_grid=parameters, cv=10, scoring='accuracy')
+    tree_cv.fit(X_train, y_train)
+
+    print("Best DTree parameters found: ", tree_cv.best_params_)
+    print("Tuned DTree Hyperparameters :(best parameters) ", tree_cv.best_params_)
+    print("Accuracy DTree:", tree_cv.best_score_)
+
+    # Task 9
+    test_accuracy = tree_cv.score(X_test, y_test)
+    print("Accuracy DTree on the test data: ", test_accuracy)
+    yhat = tree_cv.predict(X_test)
+    # plot_confusion_matrix(y_test, yhat)
+
+    # Task 10
+    parameters = {'n_neighbors': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                  'weights': ['uniform', 'distance'],
+                  'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute'],
+                  'metric': ['euclidean', 'manhattan', 'minkowski'],
+                  'p': [1, 2]}
+
+    knn = KNeighborsClassifier()
+    knn_cv = GridSearchCV(estimator=knn, param_grid=parameters, cv=10, scoring='accuracy')
+    knn_cv.fit(X_train, y_train)
+
+    print("Best KNN parameters found: ", knn_cv.best_params_)
+    print("Tuned KNN Hyperparameters :(best parameters) ", knn_cv.best_params_)
+    print("Accuracy KNN:", knn_cv.best_score_)
+
+    # Task 11
+    test_accuracy = knn_cv.score(X_test, y_test)
+    print("Accuracy KNN on the test data: ", test_accuracy)
+    yhat = knn_cv.predict(X_test)
+    # plot_confusion_matrix(y_test, yhat)
+
+    # Task 12
+    print(f"Logistic Regression Test Accuracy: {logreg_cv.best_score_:.4f}")
+    print(f"SVM Test Accuracy: {svm_cv.best_score_:.4f}")
+    print(f"Decision Tree Test Accuracy: {tree_cv.best_score_:.4f}")
+    print(f"KNN Test Accuracy: {knn_cv.best_score_:.4f}")
+
+    best_accuracy = max(logreg_cv.best_score_, svm_cv.best_score_, tree_cv.best_score_, knn_cv.best_score_)
+    if best_accuracy == logreg_cv.best_score_:
+        best_model = 'Logistic Regression'
+    elif best_accuracy == svm_cv.best_score_:
+        best_model = 'SVM'
+    elif best_accuracy == tree_cv.best_score_:
+        best_model = 'Decision Tree'
+    else:
+        best_model = 'KNN'
+
+    print(f"\nThe best model is: {best_model} with an accuracy of {best_accuracy:.4f}")
+
+    num_records = len(df)
+    print(f"The number of records in the DataFrame is: {num_records}")
+    num_test_records = X_test.shape[0]
+    print(f"The number of records in the test feature set is: {num_test_records}")
+    num_test_labels = len(y_test)
+    print(f"The number of records in the test label set is: {num_test_labels}")
+
+asyncio.run(main())
