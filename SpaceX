@@ -1,0 +1,67 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, recall_score, classification_report, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.impute import SimpleImputer
+import seaborn as sns
+import numpy as np
+import matplotlib as mpl
+import aiohttp
+import asyncio
+import warnings
+
+warnings.filterwarnings('ignore')
+
+async def download_file(url, filepath):
+    connector = aiohttp.TCPConnector(ssl=False)
+    async with aiohttp.ClientSession(connector=connector) as session:
+        async with session.get(url) as response:
+             with open(filepath, 'wb') as file:
+                file.write(await response.read())
+
+def read_data(filepath):
+    return pd.read_csv(filepath)
+
+async def main():
+    url = "https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/dataset_part_1.csv"
+    filepath = "dataset_part_1.csv"
+    await download_file(url, "dataset_part_1.csv")
+
+    df = read_data(filepath)
+    pd.set_option('display.max_rows', None)
+    pd.set_option('display.max_columns', None)
+    print(df.head(10))
+    print(df.isnull().sum() / len(df) * 100)
+    print(df.dtypes)
+    print(df['LaunchSite'].value_counts())
+    print(df['Orbit'].value_counts())
+    landing_outcomes = df['Outcome'].value_counts()
+    for i, outcome in enumerate(landing_outcomes.keys()):
+        print(i, outcome)
+    bad_outcomes = set(landing_outcomes.keys()[[1, 3, 5, 6, 7]])
+    print(bad_outcomes)
+    landing_class = [0 if outcome in bad_outcomes else 1 for outcome in df['Outcome']]
+    df['Class'] = landing_class
+    print(df[['Class']].head(8))
+    print(df["Class"].mean())
+
+    success_rate = df["Class"].mean()
+    print(f"Success rate: {success_rate}")
+    success_count = (df["Class"] == 1).sum()
+    print(f"Success count: {success_count}")
+
+    fail_rate = 1 - success_rate
+    print(f"Fail rate: {fail_rate}")
+    fail_count = (df["Class"] == 0).sum()
+    print(f"Fail count: {fail_count}")
+
+    failed_landings = df[df['Outcome'].isin(['None None', 'False ASDS', 'False Ocean', 'False RTLS'])]
+    num_failed_landings = len(failed_landings)
+    print(f"Number of complete landing failures: {num_failed_landings}")
+
+asyncio.run(main())
